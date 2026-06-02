@@ -1,9 +1,14 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { getIncompatibeleParenVoor, isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
-import { dsatur, bouwLumens, type Toewijzing } from "@/lib/graph-coloring";
 import { defaultCvdLumenIndex, type LijnType } from "@/lib/lijnen";
 import { resolveCanoniekeNaam } from "@/lib/medicijn-zoeken";
+import {
+  berekenVerdelingUitkomst,
+  type VerdelingFout,
+} from "@/lib/verdeling-diagnose";
+import type { Toewijzing } from "@/lib/graph-coloring";
+
+export type { VerdelingFout };
 
 export interface Lijn {
   id: string;
@@ -19,7 +24,7 @@ interface IcuState {
   lijnen: Lijn[];
   toewijzingen: Toewijzing[] | null;
   verdelingMogelijk: boolean | null; // null = nog niet berekend
-  verdelingFout: "geen_lumen" | "centraal_vereist" | null;
+  verdelingFout: VerdelingFout;
   aantalGebruikteLumens: number;
 }
 
@@ -33,6 +38,7 @@ interface IcuActions {
   verwijderLijn: (id: string) => void;
   herstelLijn: (lijn: Lijn, index: number) => void;
   updateLijn: (id: string, wijzigingen: Partial<Omit<Lijn, "id">>) => void;
+  verhoogEersteCvcLumens: () => void;
   berekenVerdeling: () => void;
   resetVerdeling: () => void;
   resetAlles: () => void;
@@ -127,6 +133,9 @@ export const useIcuStore = create<IcuStore>()(
       ],
       ...verdelingReset,
     });
+    if (get().activeMedicijnen.length > 0) {
+      get().berekenVerdeling();
+    }
   },
 
   voegCvcToe: () => {
@@ -136,6 +145,9 @@ export const useIcuStore = create<IcuStore>()(
       lijnen: [...state.lijnen, nieuweCvc(aantal === 0 ? "CVC" : `CVC ${aantal + 1}`)],
       ...verdelingReset,
     });
+    if (get().activeMedicijnen.length > 0) {
+      get().berekenVerdeling();
+    }
   },
 
   verwijderLijn: (id) => {
@@ -143,6 +155,9 @@ export const useIcuStore = create<IcuStore>()(
       lijnen: s.lijnen.filter((l) => l.id !== id),
       ...verdelingReset,
     }));
+    if (get().activeMedicijnen.length > 0) {
+      get().berekenVerdeling();
+    }
   },
 
   herstelLijn: (lijn, index) => {
@@ -175,6 +190,15 @@ export const useIcuStore = create<IcuStore>()(
       }),
       ...verdelingReset,
     }));
+    if (get().activeMedicijnen.length > 0) {
+      get().berekenVerdeling();
+    }
+  },
+
+  verhoogEersteCvcLumens: () => {
+    const cvc = get().lijnen.find((l) => l.type === "cvc");
+    if (!cvc || cvc.aantalLumens >= 4) return;
+    get().updateLijn(cvc.id, { aantalLumens: cvc.aantalLumens + 1 });
   },
 
   berekenVerdeling: () => {
@@ -201,48 +225,21 @@ export const useIcuStore = create<IcuStore>()(
       return;
     }
 
-    const centraalVereist = uniekeMedicijnen.filter(isAlleenCentraal);
-    const cvcLumens = lijnen
-      .filter((l) => l.type === "cvc")
-      .reduce((s, l) => s + l.aantalLumens, 0);
+    const uitkomst = berekenVerdelingUitkomst(uniekeMedicijnen, lijnen);
 
-    if (centraalVereist.length > 0 && cvcLumens === 0) {
+    if (uitkomst.resultaat === null) {
       set({
         toewijzingen: null,
         verdelingMogelijk: false,
-        verdelingFout: "centraal_vereist",
-        aantalGebruikteLumens: 0,
-      });
-      return;
-    }
-
-    const incompatibelen = getIncompatibeleParenVoor(uniekeMedicijnen);
-    const lumens = bouwLumens(lijnen);
-    const alleenCentraal = new Set(centraalVereist);
-    const gevaarlijkBijCvd = new Set(
-      uniekeMedicijnen.filter(isGevaarlijkBijCvdFlush)
-    );
-    const resultaat = dsatur(
-      uniekeMedicijnen,
-      incompatibelen,
-      lumens,
-      alleenCentraal,
-      gevaarlijkBijCvd
-    );
-
-    if (resultaat === null) {
-      set({
-        toewijzingen: null,
-        verdelingMogelijk: false,
-        verdelingFout: "geen_lumen",
+        verdelingFout: uitkomst.fout,
         aantalGebruikteLumens: 0,
       });
     } else {
       set({
-        toewijzingen: resultaat.toewijzingen,
+        toewijzingen: uitkomst.resultaat.toewijzingen,
         verdelingMogelijk: true,
         verdelingFout: null,
-        aantalGebruikteLumens: resultaat.aantalGebruikteLumens,
+        aantalGebruikteLumens: uitkomst.resultaat.aantalGebruikteLumens,
       });
     }
   },
