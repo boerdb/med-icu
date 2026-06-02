@@ -20,6 +20,14 @@ export const zoekSynoniemen: Record<string, string[]> = {
   Tranexaminezuur: ["TXA", "Cyklokapron"],
   Ceftriaxon: ["Rocephin"],
   Linezolid: ["Zyvox"],
+  Furosemide: ["Lasix", "Furosemide"],
+  Magnesiumsulfaat: [
+    "Magnesium sulfaat",
+    "Magnesiumsulfaat",
+    "MgSO4",
+    "Mg SO4",
+    "Magnesium",
+  ],
 };
 
 export function normaliseerZoekterm(term: string): string {
@@ -28,6 +36,38 @@ export function normaliseerZoekterm(term: string): string {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .trim();
+}
+
+let canoniekOpGenormaliseerd: Map<string, string> | null = null;
+
+function getCanoniekLookup(): Map<string, string> {
+  if (canoniekOpGenormaliseerd) return canoniekOpGenormaliseerd;
+
+  canoniekOpGenormaliseerd = new Map<string, string>();
+  for (const canoniek of getAlleMedicijnen()) {
+    const registreer = (alias: string) => {
+      const norm = normaliseerZoekterm(alias);
+      if (norm) canoniekOpGenormaliseerd!.set(norm, canoniek);
+    };
+    registreer(canoniek);
+    for (const synoniem of zoekSynoniemen[canoniek] ?? []) {
+      registreer(synoniem);
+    }
+  }
+  return canoniekOpGenormaliseerd;
+}
+
+/** Zet invoer om naar de canonieke datasetnaam (synoniemen, accenten, hoofdletters). */
+export function resolveCanoniekeNaam(invoer: string): string {
+  const trimmed = invoer.trim();
+  if (!trimmed) return trimmed;
+
+  if (getAlleMedicijnen().includes(trimmed)) return trimmed;
+
+  const canoniek = getCanoniekLookup().get(normaliseerZoekterm(trimmed));
+  if (canoniek) return canoniek;
+
+  return trimmed;
 }
 
 export function zoekMedicijnen(

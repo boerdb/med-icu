@@ -15,6 +15,7 @@ const veelgebruikt = [
   "Insuline",
   "Heparine",
   "Furosemide",
+  "Magnesiumsulfaat",
   "Paracetamol",
   "Rocuronium",
 ];

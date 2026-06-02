@@ -3,6 +3,7 @@ import { persist, createJSONStorage, type StateStorage } from "zustand/middlewar
 import { getIncompatibeleParenVoor, isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 import { dsatur, bouwLumens, type Toewijzing } from "@/lib/graph-coloring";
 import { defaultCvdLumenIndex, type LijnType } from "@/lib/lijnen";
+import { resolveCanoniekeNaam } from "@/lib/medicijn-zoeken";
 
 export interface Lijn {
   id: string;
@@ -79,9 +80,10 @@ export const useIcuStore = create<IcuStore>()(
 
   voegMedicijnToe: (naam) => {
     const state = get();
-    if (state.activeMedicijnen.includes(naam)) return;
+    const canoniek = resolveCanoniekeNaam(naam);
+    if (!canoniek || state.activeMedicijnen.includes(canoniek)) return;
     set({
-      activeMedicijnen: [...state.activeMedicijnen, naam],
+      activeMedicijnen: [...state.activeMedicijnen, canoniek],
       toewijzingen: null,
       verdelingMogelijk: null,
       verdelingFout: null,
@@ -96,10 +98,11 @@ export const useIcuStore = create<IcuStore>()(
   },
 
   herstelMedicijn: (naam, index) => {
+    const canoniek = resolveCanoniekeNaam(naam);
     set((s) => {
-      if (s.activeMedicijnen.includes(naam)) return s;
+      if (s.activeMedicijnen.includes(canoniek)) return s;
       const arr = [...s.activeMedicijnen];
-      arr.splice(Math.min(Math.max(0, index), arr.length), 0, naam);
+      arr.splice(Math.min(Math.max(0, index), arr.length), 0, canoniek);
       return { activeMedicijnen: arr, ...verdelingReset };
     });
   },
@@ -175,8 +178,20 @@ export const useIcuStore = create<IcuStore>()(
   },
 
   berekenVerdeling: () => {
-    const { activeMedicijnen, lijnen } = get();
-    if (activeMedicijnen.length === 0) {
+    const state = get();
+    const { lijnen } = state;
+    const uniekeMedicijnen = [
+      ...new Set(state.activeMedicijnen.map(resolveCanoniekeNaam)),
+    ];
+
+    if (
+      uniekeMedicijnen.length !== state.activeMedicijnen.length ||
+      uniekeMedicijnen.some((m, i) => m !== state.activeMedicijnen[i])
+    ) {
+      set({ activeMedicijnen: uniekeMedicijnen });
+    }
+
+    if (uniekeMedicijnen.length === 0) {
       set({
         toewijzingen: [],
         verdelingMogelijk: true,
@@ -186,7 +201,7 @@ export const useIcuStore = create<IcuStore>()(
       return;
     }
 
-    const centraalVereist = activeMedicijnen.filter(isAlleenCentraal);
+    const centraalVereist = uniekeMedicijnen.filter(isAlleenCentraal);
     const cvcLumens = lijnen
       .filter((l) => l.type === "cvc")
       .reduce((s, l) => s + l.aantalLumens, 0);
@@ -201,14 +216,14 @@ export const useIcuStore = create<IcuStore>()(
       return;
     }
 
-    const incompatibelen = getIncompatibeleParenVoor(activeMedicijnen);
+    const incompatibelen = getIncompatibeleParenVoor(uniekeMedicijnen);
     const lumens = bouwLumens(lijnen);
     const alleenCentraal = new Set(centraalVereist);
     const gevaarlijkBijCvd = new Set(
-      activeMedicijnen.filter(isGevaarlijkBijCvdFlush)
+      uniekeMedicijnen.filter(isGevaarlijkBijCvdFlush)
     );
     const resultaat = dsatur(
-      activeMedicijnen,
+      uniekeMedicijnen,
       incompatibelen,
       lumens,
       alleenCentraal,
@@ -260,6 +275,16 @@ export const useIcuStore = create<IcuStore>()(
         verdelingFout: state.verdelingFout,
         aantalGebruikteLumens: state.aantalGebruikteLumens,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        state.activeMedicijnen = [
+          ...new Set(state.activeMedicijnen.map(resolveCanoniekeNaam)),
+        ];
+        state.toewijzingen = null;
+        state.verdelingMogelijk = null;
+        state.verdelingFout = null;
+        state.aantalGebruikteLumens = 0;
+      },
     }
   )
 );

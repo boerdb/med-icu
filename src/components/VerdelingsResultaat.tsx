@@ -2,7 +2,10 @@
 
 import { useIcuStore } from "@/store/icu-store";
 import { useToastStore } from "@/store/toast-store";
-import { isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
+import {
+  isGevaarlijkBijCvdFlush,
+  vindConflictenInToewijzingen,
+} from "@/lib/compatibility";
 import { defaultCvdLumenIndex, lumenLabel } from "@/lib/lijnen";
 
 // Kleuren per lumen-index (voor visueel onderscheid)
@@ -124,6 +127,8 @@ export function VerdelingsResultaat() {
   if (toewijzingen.length === 0) {
     return null;
   }
+
+  const conflictenInVerdeling = vindConflictenInToewijzingen(toewijzingen);
 
   // Groepeer toewijzingen per lijn en lumen
   const perLijn: Record<
@@ -267,6 +272,21 @@ export function VerdelingsResultaat() {
           </button>
         </div>
       </div>
+
+      {conflictenInVerdeling.length > 0 && (
+        <div className="mb-4 rounded-lg border-2 border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-900/20 p-4">
+          <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+            Incompatibele medicijnen op hetzelfde lumen
+          </p>
+          <ul className="mt-2 text-xs text-red-700 dark:text-red-400 space-y-1">
+            {conflictenInVerdeling.map(([a, b]) => (
+              <li key={`${a}-${b}`}>
+                ⚠ {a} + {b} — herbereken of voeg een lumen toe
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-4">
         {Object.entries(perLijn).map(([lijnIndexStr, lijnData]) => (

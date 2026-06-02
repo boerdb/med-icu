@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useIcuStore } from "@/store/icu-store";
-import { getStatus, type CompatibiliteitStatus } from "@/lib/compatibility";
+import {
+  getIncompatibeleParenVoor,
+  getStatus,
+  type CompatibiliteitStatus,
+} from "@/lib/compatibility";
 
 const statusOmschrijving: Record<CompatibiliteitStatus, string> = {
   compatibel: "Compatibel (Y-site)",
@@ -56,6 +60,8 @@ export function CompatibiliteitsMatrix() {
     status: CompatibiliteitStatus;
   } | null>(null);
 
+  const incompatibelen = getIncompatibeleParenVoor(activeMedicijnen);
+
   if (activeMedicijnen.length < 2) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center">
@@ -82,6 +88,13 @@ export function CompatibiliteitsMatrix() {
           Onbekend
         </span>
       </div>
+
+      {incompatibelen.length > 0 && (
+        <p className="mb-3 text-xs text-red-700 dark:text-red-400">
+          <strong>{incompatibelen.length}</strong> incompatibele combinatie
+          {incompatibelen.length !== 1 ? "s" : ""} in de matrix (rode ✗).
+        </p>
+      )}
 
       {geselecteerd && (
         <div

@@ -92,7 +92,7 @@ export function ActiveMedicatieLijst() {
               {onbekend && (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wide opacity-75"
-                  title="Niet in dataset — valt buiten compatibiliteitscontrole en telt niet mee in de verdeling"
+                  title="Niet in dataset — geen Y-site incompatibiliteitsdata; verifieer handmatig in Stabilis"
                 >
                   buiten dataset
                 </span>
@@ -128,8 +128,9 @@ export function ActiveMedicatieLijst() {
         <div className="mt-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600">
           <p className="text-xs text-slate-600 dark:text-slate-400">
             <strong>{aantalOnbekend}</strong> medicijn{aantalOnbekend !== 1 ? "en" : ""} buiten
-            de dataset — deze word{aantalOnbekend !== 1 ? "en" : "t"} niet meegewogen in de
-            compatibiliteitscontrole of de verdeling. Verifieer handmatig in Stabilis 4.0.
+            de dataset — voor deze middelen zijn geen Y-site incompatibiliteiten bekend in de
+            app. Ze worden wel verdeeld over lumens, maar controleer combinaties handmatig in
+            Stabilis 4.0.
           </p>
         </div>
       )}
