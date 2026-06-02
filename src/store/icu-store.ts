@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { getIncompatibeleParenVoor, isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 import { dsatur, bouwLumens, type Toewijzing } from "@/lib/graph-coloring";
 import { defaultCvdLumenIndex, type LijnType } from "@/lib/lijnen";
@@ -24,12 +25,16 @@ interface IcuState {
 interface IcuActions {
   voegMedicijnToe: (naam: string) => void;
   verwijderMedicijn: (naam: string) => void;
+  herstelMedicijn: (naam: string, index: number) => void;
   voegLijnToe: () => void;
   voegPerifeerToe: () => void;
+  voegCvcToe: () => void;
   verwijderLijn: (id: string) => void;
+  herstelLijn: (lijn: Lijn, index: number) => void;
   updateLijn: (id: string, wijzigingen: Partial<Omit<Lijn, "id">>) => void;
   berekenVerdeling: () => void;
   resetVerdeling: () => void;
+  resetAlles: () => void;
 }
 
 export type IcuStore = IcuState & IcuActions;
@@ -38,17 +43,33 @@ function nieuweId(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
-const defaultLijnen: Lijn[] = [
-  {
+function nieuweCvc(naam = "CVC"): Lijn {
+  return {
     id: nieuweId(),
-    naam: "CVC",
+    naam,
     type: "cvc",
     aantalLumens: 3,
     cvdLumenIndex: 2,
-  },
-];
+  };
+}
 
-export const useIcuStore = create<IcuStore>((set, get) => ({
+const defaultLijnen: Lijn[] = [nieuweCvc()];
+
+const verdelingReset = {
+  toewijzingen: null,
+  verdelingMogelijk: null,
+  verdelingFout: null,
+} as const;
+
+const ssrVeiligeStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+export const useIcuStore = create<IcuStore>()(
+  persist(
+    (set, get) => ({
   activeMedicijnen: [],
   lijnen: defaultLijnen,
   toewijzingen: null,
@@ -70,10 +91,17 @@ export const useIcuStore = create<IcuStore>((set, get) => ({
   verwijderMedicijn: (naam) => {
     set((s) => ({
       activeMedicijnen: s.activeMedicijnen.filter((m) => m !== naam),
-      toewijzingen: null,
-      verdelingMogelijk: null,
-      verdelingFout: null,
+      ...verdelingReset,
     }));
+  },
+
+  herstelMedicijn: (naam, index) => {
+    set((s) => {
+      if (s.activeMedicijnen.includes(naam)) return s;
+      const arr = [...s.activeMedicijnen];
+      arr.splice(Math.min(Math.max(0, index), arr.length), 0, naam);
+      return { activeMedicijnen: arr, ...verdelingReset };
+    });
   },
 
   voegLijnToe: () => {
@@ -94,19 +122,33 @@ export const useIcuStore = create<IcuStore>((set, get) => ({
           aantalLumens: 1,
         },
       ],
-      toewijzingen: null,
-      verdelingMogelijk: null,
-      verdelingFout: null,
+      ...verdelingReset,
+    });
+  },
+
+  voegCvcToe: () => {
+    const state = get();
+    const aantal = state.lijnen.filter((l) => l.type === "cvc").length;
+    set({
+      lijnen: [...state.lijnen, nieuweCvc(aantal === 0 ? "CVC" : `CVC ${aantal + 1}`)],
+      ...verdelingReset,
     });
   },
 
   verwijderLijn: (id) => {
     set((s) => ({
       lijnen: s.lijnen.filter((l) => l.id !== id),
-      toewijzingen: null,
-      verdelingMogelijk: null,
-      verdelingFout: null,
+      ...verdelingReset,
     }));
+  },
+
+  herstelLijn: (lijn, index) => {
+    set((s) => {
+      if (s.lijnen.some((l) => l.id === lijn.id)) return s;
+      const arr = [...s.lijnen];
+      arr.splice(Math.min(Math.max(0, index), arr.length), 0, lijn);
+      return { lijnen: arr, ...verdelingReset };
+    });
   },
 
   updateLijn: (id, wijzigingen) => {
@@ -128,9 +170,7 @@ export const useIcuStore = create<IcuStore>((set, get) => ({
         }
         return bijgewerkt;
       }),
-      toewijzingen: null,
-      verdelingMogelijk: null,
-      verdelingFout: null,
+      ...verdelingReset,
     }));
   },
 
@@ -193,6 +233,33 @@ export const useIcuStore = create<IcuStore>((set, get) => ({
   },
 
   resetVerdeling: () => {
-    set({ toewijzingen: null, verdelingMogelijk: null, verdelingFout: null });
+    set({ ...verdelingReset });
   },
-}));
+
+  resetAlles: () => {
+    set({
+      activeMedicijnen: [],
+      lijnen: [nieuweCvc()],
+      toewijzingen: null,
+      verdelingMogelijk: null,
+      verdelingFout: null,
+      aantalGebruikteLumens: 0,
+    });
+  },
+    }),
+    {
+      name: "icu-store",
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined" ? window.localStorage : ssrVeiligeStorage
+      ),
+      partialize: (state) => ({
+        activeMedicijnen: state.activeMedicijnen,
+        lijnen: state.lijnen,
+        toewijzingen: state.toewijzingen,
+        verdelingMogelijk: state.verdelingMogelijk,
+        verdelingFout: state.verdelingFout,
+        aantalGebruikteLumens: state.aantalGebruikteLumens,
+      }),
+    }
+  )
+);

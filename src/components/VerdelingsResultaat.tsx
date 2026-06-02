@@ -1,6 +1,7 @@
 "use client";
 
 import { useIcuStore } from "@/store/icu-store";
+import { useToastStore } from "@/store/toast-store";
 import { isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 import { defaultCvdLumenIndex, lumenLabel } from "@/lib/lijnen";
 
@@ -25,8 +26,11 @@ export function VerdelingsResultaat() {
   const verdelingFout = useIcuStore((s) => s.verdelingFout);
   const lijnen = useIcuStore((s) => s.lijnen);
   const berekenVerdeling = useIcuStore((s) => s.berekenVerdeling);
+  const voegCvcToe = useIcuStore((s) => s.voegCvcToe);
+  const voegPerifeerToe = useIcuStore((s) => s.voegPerifeerToe);
   const activeMedicijnen = useIcuStore((s) => s.activeMedicijnen);
   const aantalGebruikteLumens = useIcuStore((s) => s.aantalGebruikteLumens);
+  const toon = useToastStore((s) => s.toon);
 
   if (verdelingMogelijk === false) {
     return (
@@ -56,6 +60,35 @@ export function VerdelingsResultaat() {
                 </>
               )}
             </p>
+            <div className="mt-3">
+              {verdelingFout === "centraal_vereist" ? (
+                <button
+                  onClick={() => {
+                    voegCvcToe();
+                    berekenVerdeling();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  CVC toevoegen
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    voegPerifeerToe();
+                    berekenVerdeling();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Perifeer infuus toevoegen
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -133,6 +166,48 @@ export function VerdelingsResultaat() {
     }
   }
 
+  const genereerOverdracht = (): string => {
+    const regels: string[] = ["IC Medicatie Verdeling", ""];
+    for (const lijnData of Object.values(perLijn)) {
+      regels.push(`${lijnData.lijnNaam}:`);
+      for (const lumenData of Object.values(lijnData.lumens)) {
+        const label = lumenData.label + (lumenData.isCvdLumen ? " [CVD]" : "");
+        if (lumenData.medicijnen.length > 0) {
+          regels.push(`  - ${label}: ${lumenData.medicijnen.join(", ")}`);
+        } else if (lijnData.lijnType === "cvc" && !lumenData.isCvdLumen) {
+          regels.push(`  - ${label}: NaCl 0,9% (lijn open houden)`);
+        } else if (lijnData.lijnType === "perifeer") {
+          regels.push(`  - ${label}: vrij`);
+        }
+      }
+      regels.push("");
+    }
+    regels.push("Beslissingsondersteuning — verifieer altijd in Stabilis 4.0.");
+    return regels.join("\n");
+  };
+
+  const handleKopieer = async () => {
+    try {
+      await navigator.clipboard.writeText(genereerOverdracht());
+      toon({ bericht: "Verdeling gekopieerd naar klembord" });
+    } catch {
+      toon({ bericht: "Kopiëren niet gelukt" });
+    }
+  };
+
+  const handleDeel = async () => {
+    const tekst = genereerOverdracht();
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "IC Medicatie Verdeling", text: tekst });
+      } catch {
+        // gebruiker annuleerde het delen — geen melding nodig
+      }
+    } else {
+      await handleKopieer();
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -147,12 +222,50 @@ export function VerdelingsResultaat() {
             {activeMedicijnen.length} medicijnen over {aantalGebruikteLumens} lumen{aantalGebruikteLumens !== 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          onClick={berekenVerdeling}
-          className="text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-        >
-          Herbereken
-        </button>
+        <div className="flex flex-wrap gap-1.5 justify-end print:hidden">
+          <button
+            onClick={handleDeel}
+            className="inline-flex items-center gap-1 text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            aria-label="Deel verdeling"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+            Deel
+          </button>
+          <button
+            onClick={handleKopieer}
+            className="inline-flex items-center gap-1 text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            aria-label="Kopieer verdeling"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            Kopieer
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1 text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            aria-label="Print verdeling"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+              />
+            </svg>
+            Print
+          </button>
+          <button
+            onClick={berekenVerdeling}
+            className="text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+          >
+            Herbereken
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">

@@ -5,6 +5,20 @@ import { zoekMedicijnen } from "@/lib/medicijn-zoeken";
 import { isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 import { useIcuStore } from "@/store/icu-store";
 
+/** Veelgebruikte IC-medicatie voor snelle toevoeging (canonieke namen uit de dataset). */
+const veelgebruikt = [
+  "Noradrenaline",
+  "Propofol",
+  "Midazolam",
+  "Sufentanil",
+  "Fentanyl",
+  "Insuline",
+  "Heparine",
+  "Furosemide",
+  "Paracetamol",
+  "Rocuronium",
+];
+
 export function MedicatieZoeker() {
   const [zoekterm, setZoekterm] = useState("");
   const [open, setOpen] = useState(false);
@@ -24,6 +38,12 @@ export function MedicatieZoeker() {
     setOpen(false);
     setGeselecteerd(-1);
     inputRef.current?.focus();
+  };
+
+  const handleZoektermChange = (waarde: string) => {
+    setZoekterm(waarde);
+    setOpen(zoekMedicijnen(waarde, activeMedicijnen).length > 0);
+    setGeselecteerd(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -56,11 +76,6 @@ export function MedicatieZoeker() {
     }
   };
 
-  useEffect(() => {
-    setOpen(gefilterd.length > 0);
-    setGeselecteerd(-1);
-  }, [zoekterm]);
-
   // Sluit dropdown bij klik buiten
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -88,7 +103,7 @@ export function MedicatieZoeker() {
             ref={inputRef}
             type="text"
             value={zoekterm}
-            onChange={(e) => setZoekterm(e.target.value)}
+            onChange={(e) => handleZoektermChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Zoek op naam (bv. Midazolam, Enoximon, Rocuronium...)"
             className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
@@ -148,6 +163,30 @@ export function MedicatieZoeker() {
       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Niet in de lijst? Typ de naam volledig en druk Enter om toch toe te voegen.
       </p>
+
+      {veelgebruikt.some((m) => !activeMedicijnen.includes(m)) && (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+            Snel toevoegen
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {veelgebruikt
+              .filter((m) => !activeMedicijnen.includes(m))
+              .map((m) => (
+                <button
+                  key={m}
+                  onClick={() => voegMedicijnToe(m)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  {m}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

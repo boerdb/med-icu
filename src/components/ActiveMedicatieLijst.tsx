@@ -1,16 +1,30 @@
 "use client";
 
 import { useIcuStore } from "@/store/icu-store";
-import { getIncompatibeleParenVoor, isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
+import { useToastStore } from "@/store/toast-store";
+import { getIncompatibeleParenVoor, isAlleenCentraal, isBekendMedicijn, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 
 export function ActiveMedicatieLijst() {
   const activeMedicijnen = useIcuStore((s) => s.activeMedicijnen);
   const verwijderMedicijn = useIcuStore((s) => s.verwijderMedicijn);
+  const herstelMedicijn = useIcuStore((s) => s.herstelMedicijn);
+  const toon = useToastStore((s) => s.toon);
 
   const incompatibelen = getIncompatibeleParenVoor(activeMedicijnen);
 
   // Welke medicijnen hebben tenminste één incompatibel partner?
   const metConflict = new Set(incompatibelen.flat());
+  const aantalOnbekend = activeMedicijnen.filter((m) => !isBekendMedicijn(m)).length;
+
+  const handleVerwijder = (med: string) => {
+    const index = activeMedicijnen.indexOf(med);
+    verwijderMedicijn(med);
+    toon({
+      bericht: `${med} verwijderd`,
+      actieLabel: "Ongedaan maken",
+      onActie: () => herstelMedicijn(med, index),
+    });
+  };
 
   if (activeMedicijnen.length === 0) {
     return (
@@ -42,15 +56,18 @@ export function ActiveMedicatieLijst() {
           const heeftConflict = metConflict.has(med);
           const centraal = isAlleenCentraal(med);
           const cvdGevaarlijk = isGevaarlijkBijCvdFlush(med);
+          const onbekend = !isBekendMedicijn(med);
           return (
             <div
               key={med}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 heeftConflict
                   ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700"
-                  : centraal
-                    ? "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 border border-violet-300 dark:border-violet-700"
-                    : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700"
+                  : onbekend
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-dashed border-slate-400 dark:border-slate-500"
+                    : centraal
+                      ? "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 border border-violet-300 dark:border-violet-700"
+                      : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700"
               }`}
             >
               {heeftConflict && (
@@ -72,8 +89,16 @@ export function ActiveMedicatieLijst() {
                   CVD✗
                 </span>
               )}
+              {onbekend && (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wide opacity-75"
+                  title="Niet in dataset — valt buiten compatibiliteitscontrole en telt niet mee in de verdeling"
+                >
+                  buiten dataset
+                </span>
+              )}
               <button
-                onClick={() => verwijderMedicijn(med)}
+                onClick={() => handleVerwijder(med)}
                 className="ml-0.5 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 aria-label={`Verwijder ${med}`}
               >
@@ -97,6 +122,15 @@ export function ActiveMedicatieLijst() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {aantalOnbekend > 0 && (
+        <div className="mt-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            <strong>{aantalOnbekend}</strong> medicijn{aantalOnbekend !== 1 ? "en" : ""} buiten
+            de dataset — deze word{aantalOnbekend !== 1 ? "en" : "t"} niet meegewogen in de
+            compatibiliteitscontrole of de verdeling. Verifieer handmatig in Stabilis 4.0.
+          </p>
         </div>
       )}
     </div>

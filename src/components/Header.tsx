@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeToggle } from "./ThemeToggle";
+import { NieuwePatientKnop } from "./NieuwePatientKnop";
 
 export function Header() {
   return (
@@ -22,7 +23,10 @@ export function Header() {
             </p>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <NieuwePatientKnop />
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

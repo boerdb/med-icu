@@ -1,18 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+function subscribeThema(callback: () => void): () => void {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
+}
+
+function getThemaSnapshot(): boolean {
+  return document.documentElement.classList.contains("dark");
+}
 
 export function ThemeToggle() {
-  const [isDonker, setIsDonker] = useState(false);
-
-  useEffect(() => {
-    setIsDonker(document.documentElement.classList.contains("dark"));
-  }, []);
+  const isDonker = useSyncExternalStore(
+    subscribeThema,
+    getThemaSnapshot,
+    () => false
+  );
 
   const wissel = () => {
-    const nieuwDonker = !isDonker;
-    setIsDonker(nieuwDonker);
-    if (nieuwDonker) {
+    if (!isDonker) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("thema", "donker");
     } else {

@@ -8,6 +8,7 @@ import { LijnConfigurator } from "@/components/LijnConfigurator";
 import { VerdelingsResultaat } from "@/components/VerdelingsResultaat";
 import { CompatibiliteitsMatrix } from "@/components/CompatibiliteitsMatrix";
 import { getBron } from "@/lib/compatibility";
+import { useIcuStore } from "@/store/icu-store";
 
 type Tab = "medicijnen" | "lijnen" | "matrix";
 
@@ -104,6 +105,13 @@ function TabButton({
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>("medicijnen");
+  const activeMedicijnen = useIcuStore((s) => s.activeMedicijnen);
+  const berekenVerdeling = useIcuStore((s) => s.berekenVerdeling);
+
+  const naarVerdeling = () => {
+    berekenVerdeling();
+    setActiveTab("lijnen");
+  };
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -150,6 +158,19 @@ export default function HomePage() {
               <div className="border-t border-[var(--card-border)] pt-4">
                 <ActiveMedicatieLijst />
               </div>
+              {activeMedicijnen.length > 0 && (
+                <button
+                  onClick={naarVerdeling}
+                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold text-base transition-colors shadow-md flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 7V4a1 1 0 011-1h14a1 1 0 011 1v3M4 7H3m1 0h16m-1 0h1M4 7v13a1 1 0 001 1h14a1 1 0 001-1V7"
+                    />
+                  </svg>
+                  Bereken optimale verdeling
+                </button>
+              )}
             </section>
 
             <section className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-4 sm:p-5 shadow-sm">

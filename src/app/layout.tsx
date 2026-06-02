@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PwaPrompts } from "@/components/PwaPrompts";
+import { Toaster } from "@/components/Toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -55,6 +56,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen">
         {children}
+        <Toaster />
         <PwaPrompts />
       </body>
     </html>

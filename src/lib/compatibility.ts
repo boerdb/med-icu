@@ -64,6 +64,13 @@ export function getAlleMedicijnen(): string[] {
   return dataset.medicijnen;
 }
 
+const bekendeMedicijnenSet = new Set<string>(dataset.medicijnen);
+
+/** Staat het medicijn in de compatibiliteitsdataset? Vrij ingevoerde namen niet. */
+export function isBekendMedicijn(medicijn: string): boolean {
+  return bekendeMedicijnenSet.has(medicijn);
+}
+
 export function getBron(): string {
   return dataset.bron;
 }

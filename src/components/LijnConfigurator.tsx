@@ -1,17 +1,33 @@
 "use client";
 
 import { useIcuStore } from "@/store/icu-store";
+import { useToastStore } from "@/store/toast-store";
 import { lumenLabel, defaultCvdLumenIndex, type LijnType } from "@/lib/lijnen";
 
 export function LijnConfigurator() {
   const lijnen = useIcuStore((s) => s.lijnen);
   const voegPerifeerToe = useIcuStore((s) => s.voegPerifeerToe);
+  const voegCvcToe = useIcuStore((s) => s.voegCvcToe);
   const verwijderLijn = useIcuStore((s) => s.verwijderLijn);
+  const herstelLijn = useIcuStore((s) => s.herstelLijn);
   const updateLijn = useIcuStore((s) => s.updateLijn);
+  const toon = useToastStore((s) => s.toon);
 
   const totaleLumens = lijnen.reduce((s, l) => s + l.aantalLumens, 0);
   const aantalPerifeer = lijnen.filter((l) => l.type === "perifeer").length;
   const aantalCvc = lijnen.filter((l) => l.type === "cvc").length;
+
+  const handleVerwijderLijn = (id: string) => {
+    const index = lijnen.findIndex((l) => l.id === id);
+    const lijn = lijnen[index];
+    if (!lijn) return;
+    verwijderLijn(id);
+    toon({
+      bericht: `${lijn.naam} verwijderd`,
+      actieLabel: "Ongedaan maken",
+      onActie: () => herstelLijn(lijn, index),
+    });
+  };
 
   return (
     <div>
@@ -25,15 +41,26 @@ export function LijnConfigurator() {
             lumen{totaleLumens !== 1 ? "s" : ""} totaal
           </p>
         </div>
-        <button
-          onClick={voegPerifeerToe}
-          className="flex items-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-          Perifeer infuus
-        </button>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <button
+            onClick={voegCvcToe}
+            className="flex items-center gap-1.5 px-3 py-2 border border-blue-700 dark:border-blue-500 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-sm font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            CVC
+          </button>
+          <button
+            onClick={voegPerifeerToe}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            Perifeer
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -53,6 +80,8 @@ export function LijnConfigurator() {
                 onChange={(e) =>
                   updateLijn(lijn.id, { type: e.target.value as LijnType })
                 }
+                aria-label={`Type lijn voor ${lijn.naam}`}
+                title="Type lijn"
                 className="px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="cvc">CVC</option>
@@ -81,6 +110,8 @@ export function LijnConfigurator() {
                         aantalLumens: parseInt(e.target.value),
                       })
                     }
+                    aria-label={`Aantal lumens voor ${lijn.naam}`}
+                    title="Aantal lumens"
                     className="px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {[1, 2, 3, 4].map((n) => (
@@ -95,7 +126,7 @@ export function LijnConfigurator() {
               {/* Verwijder */}
               {lijnen.length > 1 && (
                 <button
-                  onClick={() => verwijderLijn(lijn.id)}
+                  onClick={() => handleVerwijderLijn(lijn.id)}
                   className="p-2 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
                   aria-label={`Verwijder ${lijn.naam}`}
                 >
