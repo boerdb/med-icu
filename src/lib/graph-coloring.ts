@@ -17,6 +17,12 @@ export interface Toewijzing {
   lumenLabel: string;
 }
 
+import {
+  kanDelenOpLumen,
+  isInsulineMedicijn,
+  isTpvMedicijn,
+} from "@/lib/compatibility";
+
 export interface DsaturResultaat {
   toewijzingen: Toewijzing[];
   aantalGebruikteLumens: number;
@@ -59,6 +65,9 @@ export function dsatur(
   const kleuren = new Map<string, string>(); // medicijn -> lumenId
   const lumenBezetting = new Map<string, number>(
     lumens.map((l) => [l.id, 0])
+  );
+  const lumenInhoud = new Map<string, string[]>(
+    lumens.map((l) => [l.id, []])
   );
   let deelRotatie = 0;
   // Saturatiegraad = aantal unieke lumen-ids gebruikt door buren
@@ -111,6 +120,7 @@ export function dsatur(
       alleenCentraal,
       gevaarlijkBijCvdFlush,
       lumenBezetting,
+      lumenInhoud,
       deelRotatie
     );
 
@@ -127,6 +137,7 @@ export function dsatur(
       toegewezenLumen,
       lumenBezetting.get(toegewezenLumen)! + 1
     );
+    lumenInhoud.get(toegewezenLumen)!.push(besteKnoop);
 
     // Update saturatie van niet-gekleurde buren
     for (const buur of buren.get(besteKnoop)!) {
@@ -197,9 +208,14 @@ function isLumenToegestaan(
   medicijn: string,
   gebruiktDoorBuren: Set<string>,
   alleenCentraal: Set<string>,
-  gevaarlijkBijCvdFlush: Set<string>
+  gevaarlijkBijCvdFlush: Set<string>,
+  lumenInhoud: Map<string, string[]>
 ): boolean {
   if (gebruiktDoorBuren.has(lumen.id)) return false;
+  const inhoud = lumenInhoud.get(lumen.id) ?? [];
+  if (inhoud.length > 0 && !kanDelenOpLumen(inhoud, medicijn)) {
+    return false;
+  }
   if (alleenCentraal.has(medicijn) && lumen.lijnType === "perifeer") {
     return false;
   }
@@ -207,6 +223,41 @@ function isLumenToegestaan(
     return false;
   }
   return true;
+}
+
+/** TPV + insuline op hetzelfde CVC-lumen (niet-CVD) indien mogelijk. */
+function vindTpvInsulinePartnerLumen(
+  lumens: Lumen[],
+  medicijn: string,
+  alleenCentraal: Set<string>,
+  gevaarlijkBijCvdFlush: Set<string>,
+  lumenInhoud: Map<string, string[]>
+): string | null {
+  const zoekPartner = isInsulineMedicijn(medicijn)
+    ? isTpvMedicijn
+    : isTpvMedicijn(medicijn)
+      ? isInsulineMedicijn
+      : null;
+  if (!zoekPartner) return null;
+
+  for (const lumen of lumens) {
+    if (lumen.lijnType !== "cvc" || lumen.isCvdLumen) continue;
+    const inhoud = lumenInhoud.get(lumen.id) ?? [];
+    if (inhoud.length !== 1 || !inhoud.some(zoekPartner)) continue;
+    if (
+      isLumenToegestaan(
+        lumen,
+        medicijn,
+        new Set(),
+        alleenCentraal,
+        gevaarlijkBijCvdFlush,
+        lumenInhoud
+      )
+    ) {
+      return lumen.id;
+    }
+  }
+  return null;
 }
 
 /** Kies een lumen: spreid, respecteer CVD-poort, vul CVC-lumens waar mogelijk. */
@@ -217,15 +268,26 @@ function kiesLumen(
   alleenCentraal: Set<string>,
   gevaarlijkBijCvdFlush: Set<string>,
   lumenBezetting: Map<string, number>,
+  lumenInhoud: Map<string, string[]>,
   deelRotatie: number
 ): string | null {
+  const partnerLumen = vindTpvInsulinePartnerLumen(
+    lumens,
+    medicijn,
+    alleenCentraal,
+    gevaarlijkBijCvdFlush,
+    lumenInhoud
+  );
+  if (partnerLumen) return partnerLumen;
+
   const toegestaan = lumens.filter((l) =>
     isLumenToegestaan(
       l,
       medicijn,
       gebruiktDoorBuren,
       alleenCentraal,
-      gevaarlijkBijCvdFlush
+      gevaarlijkBijCvdFlush,
+      lumenInhoud
     )
   );
   if (toegestaan.length === 0) return null;
@@ -240,7 +302,13 @@ function kiesLumen(
     const lege = cvcNietCvd.filter((l) => lumenBezetting.get(l.id) === 0);
     if (lege.length > 0) return lege[0].id;
     if (cvcNietCvd.length > 0) {
-      return kiesMinstBezet(cvcNietCvd, lumenBezetting, deelRotatie);
+      return kiesMinstBezet(
+        cvcNietCvd,
+        lumenBezetting,
+        lumenInhoud,
+        medicijn,
+        deelRotatie
+      );
     }
     return null;
   }
@@ -254,7 +322,13 @@ function kiesLumen(
   const legePerifeer = perifeer.filter((l) => lumenBezetting.get(l.id) === 0);
   if (legePerifeer.length > 0) return legePerifeer[0].id;
   if (perifeer.length > 0) {
-    return kiesMinstBezet(perifeer, lumenBezetting, deelRotatie);
+    return kiesMinstBezet(
+      perifeer,
+      lumenBezetting,
+      lumenInhoud,
+      medicijn,
+      deelRotatie
+    );
   }
 
   // CVD-poort: alleen één CVD-veilig medicijn op lege meetpoort (noodgeval).
@@ -263,7 +337,13 @@ function kiesLumen(
   if (legeCvd.length > 0) return legeCvd[0].id;
 
   if (cvcNietCvd.length > 0) {
-    return kiesMinstBezet(cvcNietCvd, lumenBezetting, deelRotatie);
+    return kiesMinstBezet(
+      cvcNietCvd,
+      lumenBezetting,
+      lumenInhoud,
+      medicijn,
+      deelRotatie
+    );
   }
 
   return null;
@@ -272,12 +352,19 @@ function kiesLumen(
 function kiesMinstBezet(
   kandidaten: Lumen[],
   lumenBezetting: Map<string, number>,
+  lumenInhoud: Map<string, string[]>,
+  medicijn: string,
   deelRotatie: number
 ): string {
+  const deelbaar = kandidaten.filter((l) => {
+    const inhoud = lumenInhoud.get(l.id) ?? [];
+    return inhoud.length === 0 || kanDelenOpLumen(inhoud, medicijn);
+  });
+  const pool = deelbaar.length > 0 ? deelbaar : kandidaten;
   const minBezetting = Math.min(
-    ...kandidaten.map((l) => lumenBezetting.get(l.id)!)
+    ...pool.map((l) => lumenBezetting.get(l.id)!)
   );
-  const minstBezet = kandidaten.filter(
+  const minstBezet = pool.filter(
     (l) => lumenBezetting.get(l.id) === minBezetting
   );
   return minstBezet[deelRotatie % minstBezet.length].id;

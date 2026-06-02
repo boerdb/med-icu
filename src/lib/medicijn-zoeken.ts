@@ -28,6 +28,15 @@ export const zoekSynoniemen: Record<string, string[]> = {
     "Mg SO4",
     "Magnesium",
   ],
+  "Totale parenterale voeding": [
+    "TPV",
+    "TPN",
+    "Parenterale voeding",
+    "Olimel",
+    "SmofKabiven",
+    "Kabiven",
+    "Nutriflex",
+  ],
 };
 
 export function normaliseerZoekterm(term: string): string {

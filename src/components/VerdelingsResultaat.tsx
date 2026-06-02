@@ -5,6 +5,8 @@ import { useToastStore } from "@/store/toast-store";
 import {
   isAlleenCentraal,
   isGevaarlijkBijCvdFlush,
+  isInsulineMedicijn,
+  isTpvMedicijn,
   vindConflictenInToewijzingen,
 } from "@/lib/compatibility";
 import { vindCvdLumenProblemen } from "@/lib/cvd-lumen";
@@ -231,6 +233,13 @@ export function VerdelingsResultaat() {
   }
 
   const cvdProblemen = vindCvdLumenProblemen(Object.values(perLijn));
+  const heeftTpvMetInsuline = Object.values(perLijn).some((lijn) =>
+    Object.values(lijn.lumens).some(
+      (l) =>
+        l.medicijnen.some(isTpvMedicijn) &&
+        l.medicijnen.some(isInsulineMedicijn)
+    )
+  );
 
   const handlePrikPerifeer = () => {
     voegPerifeerToe();
@@ -351,6 +360,15 @@ export function VerdelingsResultaat() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {heeftTpvMetInsuline && (
+        <div className="mb-4 rounded-lg border border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20 p-3 print:hidden">
+          <p className="text-xs text-teal-800 dark:text-teal-300">
+            Insuline loopt bij TPV op hetzelfde CVC-lumen — gangbare IC-praktijk;
+            controleer infuuspomp en compatibiliteit in Stabilis.
+          </p>
         </div>
       )}
 

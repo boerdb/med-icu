@@ -13,6 +13,7 @@ const veelgebruikt = [
   "Sufentanil",
   "Fentanyl",
   "Insuline",
+  "Totale parenterale voeding",
   "Heparine",
   "Furosemide",
   "Magnesiumsulfaat",

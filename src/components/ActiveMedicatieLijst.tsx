@@ -2,7 +2,14 @@
 
 import { useIcuStore } from "@/store/icu-store";
 import { useToastStore } from "@/store/toast-store";
-import { getIncompatibeleParenVoor, isAlleenCentraal, isBekendMedicijn, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
+import {
+  getIncompatibeleParenVoor,
+  isAlleenCentraal,
+  isBekendMedicijn,
+  isExclusiefLumen,
+  isGevaarlijkBijCvdFlush,
+  isTpvMedicijn,
+} from "@/lib/compatibility";
 
 export function ActiveMedicatieLijst() {
   const activeMedicijnen = useIcuStore((s) => s.activeMedicijnen);
@@ -55,6 +62,8 @@ export function ActiveMedicatieLijst() {
         {activeMedicijnen.map((med) => {
           const heeftConflict = metConflict.has(med);
           const centraal = isAlleenCentraal(med);
+          const exclusief = isExclusiefLumen(med);
+          const tpv = isTpvMedicijn(med);
           const cvdGevaarlijk = isGevaarlijkBijCvdFlush(med);
           const onbekend = !isBekendMedicijn(med);
           return (
@@ -79,6 +88,18 @@ export function ActiveMedicatieLijst() {
               {centraal && (
                 <span className="text-[10px] font-bold uppercase tracking-wide opacity-75">
                   CVC
+                </span>
+              )}
+              {exclusief && (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wide opacity-75"
+                  title={
+                    tpv
+                      ? "Eigen CVC-lumen; insuline mag op hetzelfde lumen bij TPV"
+                      : "Eigen lumen — niet delen met andere medicatie"
+                  }
+                >
+                  {tpv ? "TPV" : "eigen lumen"}
                 </span>
               )}
               {cvdGevaarlijk && (
