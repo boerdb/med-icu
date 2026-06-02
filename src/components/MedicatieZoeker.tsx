@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getAlleMedicijnen, isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
+import { zoekMedicijnen } from "@/lib/medicijn-zoeken";
+import { isAlleenCentraal, isGevaarlijkBijCvdFlush } from "@/lib/compatibility";
 import { useIcuStore } from "@/store/icu-store";
 
 export function MedicatieZoeker() {
@@ -14,15 +15,8 @@ export function MedicatieZoeker() {
   const voegMedicijnToe = useIcuStore((s) => s.voegMedicijnToe);
   const activeMedicijnen = useIcuStore((s) => s.activeMedicijnen);
 
-  const alleMedicijnen = getAlleMedicijnen();
-
-  const gefilterd = zoekterm.trim().length > 0
-    ? alleMedicijnen.filter(
-        (m) =>
-          m.toLowerCase().includes(zoekterm.toLowerCase()) &&
-          !activeMedicijnen.includes(m)
-      )
-    : [];
+  const alleMedicijnen = zoekMedicijnen(zoekterm, activeMedicijnen);
+  const gefilterd = zoekterm.trim().length > 0 ? alleMedicijnen : [];
 
   const voegToe = (naam: string) => {
     voegMedicijnToe(naam);
@@ -96,7 +90,7 @@ export function MedicatieZoeker() {
             value={zoekterm}
             onChange={(e) => setZoekterm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Zoek op naam (bv. Morfine, Furosemide...)"
+            placeholder="Zoek op naam (bv. Midazolam, Enoximon, Rocuronium...)"
             className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
             autoComplete="off"
           />
