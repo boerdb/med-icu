@@ -88,8 +88,8 @@ export function MedicatieZoeker() {
       <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
         Medicijn toevoegen
       </label>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1 min-w-0">
           <input
             ref={inputRef}
             type="text"
@@ -142,7 +142,7 @@ export function MedicatieZoeker() {
               else voegToe(zoekterm.trim());
             }
           }}
-          className="px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-colors flex items-center gap-1"
+          className="w-full sm:w-auto px-4 py-3 min-h-[48px] bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1"
           aria-label="Voeg medicijn toe"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -114,7 +114,7 @@ NODE_ENV=production
     run(ssh, "pm2 list", check=False)
     print("\n=== Deploy klaar ===")
     print("App: http://192.168.1.32:3013")
-    print("Cloudflare Tunnel: service http://127.0.0.1:3013 (hostname nog configureren)")
+    print("Cloudflare Tunnel: icu-med.clvs.nl -> http://127.0.0.1:3013")
     ssh.close()
 
 
