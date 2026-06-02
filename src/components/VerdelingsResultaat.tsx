@@ -6,6 +6,7 @@ import {
   isGevaarlijkBijCvdFlush,
   vindConflictenInToewijzingen,
 } from "@/lib/compatibility";
+import { vindCvdLumenProblemen } from "@/lib/cvd-lumen";
 import { defaultCvdLumenIndex, lumenLabel } from "@/lib/lijnen";
 
 // Kleuren per lumen-index (voor visueel onderscheid)
@@ -57,9 +58,9 @@ export function VerdelingsResultaat() {
                 </>
               ) : (
                 <>
-                  Er zijn te veel incompatibele medicijnen voor het huidige
-                  aantal lumens. Voeg een perifeer infuus toe of verwijder een
-                  medicijn.
+                  Er zijn niet genoeg lumens — het CVD-meetlumen mag maximaal één
+                  (CVD-veilig) infuus dragen. Prik een perifeer infuus of verwijder
+                  een medicijn.
                 </>
               )}
             </p>
@@ -88,7 +89,7 @@ export function VerdelingsResultaat() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                   </svg>
-                  Perifeer infuus toevoegen
+                  Prik perifeer infuus
                 </button>
               )}
             </div>
@@ -170,6 +171,13 @@ export function VerdelingsResultaat() {
       perLijn[tw.lijnIndex].lumens[tw.lumenIndex]?.medicijnen.push(tw.medicijn);
     }
   }
+
+  const cvdProblemen = vindCvdLumenProblemen(Object.values(perLijn));
+
+  const handlePrikPerifeer = () => {
+    voegPerifeerToe();
+    berekenVerdeling();
+  };
 
   const genereerOverdracht = (): string => {
     const regels: string[] = ["IC Medicatie Verdeling", ""];
@@ -288,6 +296,75 @@ export function VerdelingsResultaat() {
         </div>
       )}
 
+      {cvdProblemen.length > 0 && (
+        <div className="mb-4 rounded-lg border-2 border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 p-4 print:hidden">
+          <div className="flex items-start gap-3">
+            <svg
+              className="w-7 h-7 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                CVD-meetlumen overbelast
+              </p>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                Het CVD-lumen is bedoeld voor drukmeting. Vasoactieve of vesicante
+                medicatie hoort daar niet (alleen in uitzondering). Meerdere infusen op
+                dezelfde meetpoort verstoren de CVD-meting.
+              </p>
+              <ul className="mt-2 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                {cvdProblemen.map((p) => (
+                  <li key={`${p.lijnNaam}-${p.lumenLabel}`}>
+                    <strong>
+                      {p.lijnNaam} — {p.lumenLabel} [CVD]:
+                    </strong>{" "}
+                    {p.medicijnen.join(", ")}
+                    {p.gevaarlijkeMedicijnen.length > 0 && (
+                      <span className="block text-red-700 dark:text-red-400 mt-0.5">
+                        Niet geschikt op CVD-lumen:{" "}
+                        {p.gevaarlijkeMedicijnen.join(", ")}
+                      </span>
+                    )}
+                    {p.heeftMeerdereMedicijnen && (
+                      <span className="block mt-0.5">
+                        {p.medicijnen.length} medicijnen op één meetpoort.
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mt-3">
+                Advies: prik een nieuw perifeer infuus en verplaats medicatie van het
+                CVD-lumen.
+              </p>
+              <button
+                type="button"
+                onClick={handlePrikPerifeer}
+                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Prik perifeer infuus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         {Object.entries(perLijn).map(([lijnIndexStr, lijnData]) => (
           <div
@@ -343,10 +420,16 @@ export function VerdelingsResultaat() {
                             <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60 flex-shrink-0" />
                             {med}
                             {lumenData.isCvdLumen && isGevaarlijkBijCvdFlush(med) && (
-                              <span className="text-[10px] text-red-600 dark:text-red-400">
-                                (niet op CVD-lumen)
+                              <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                                (alleen noodgeval op CVD)
                               </span>
                             )}
+                            {lumenData.isCvdLumen &&
+                              lumenData.medicijnen.length >= 2 && (
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                                  (meetpoort gedeeld)
+                                </span>
+                              )}
                           </li>
                         ))}
                       </ul>

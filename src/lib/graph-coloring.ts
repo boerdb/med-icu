@@ -257,12 +257,10 @@ function kiesLumen(
     return kiesMinstBezet(perifeer, lumenBezetting, deelRotatie);
   }
 
-  // CVD-poort: alleen CVD-veilige medicatie (bijv. insuline in noodgeval)
+  // CVD-poort: alleen één CVD-veilig medicijn op lege meetpoort (noodgeval).
+  // Nooit een tweede medicijn op hetzelfde CVD-lumen — prik perifeer infuus.
   const legeCvd = cvcCvd.filter((l) => lumenBezetting.get(l.id) === 0);
   if (legeCvd.length > 0) return legeCvd[0].id;
-  if (cvcCvd.length > 0) {
-    return kiesMinstBezet(cvcCvd, lumenBezetting, deelRotatie);
-  }
 
   if (cvcNietCvd.length > 0) {
     return kiesMinstBezet(cvcNietCvd, lumenBezetting, deelRotatie);
