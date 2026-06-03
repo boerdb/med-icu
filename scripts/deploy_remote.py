@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy IV Medicatie Verdeler naar Next-server (192.168.1.32) via SSH/SFTP."""
+"""Deploy IV Medicatie Verdeler naar Next-server via SSH (git pull of eerste upload)."""
 import os
 import sys
 import tarfile
@@ -12,6 +12,10 @@ HOST = os.environ.get("DEPLOY_HOST", "192.168.1.32")
 USER = os.environ.get("DEPLOY_USER", "root")
 PASSWORD = os.environ.get("DEPLOY_PASSWORD", "kerkpoort")
 REMOTE_DIR = os.environ.get("DEPLOY_DIR", "/var/www/med-icu")
+BRANCH = os.environ.get("DEPLOY_BRANCH", "main")
+REPO = os.environ.get(
+    "DEPLOY_REPO", "https://github.com/boerdb/med-icu.git"
+)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 SKIP_DIRS = {
@@ -22,6 +26,10 @@ SKIP_DIRS = {
     "__pycache__",
 }
 SKIP_FILES = {".env", ".env.local"}
+
+ENV_CONTENT = """NEXT_PUBLIC_APP_NAME=IV Medicatie Verdeler
+NODE_ENV=production
+"""
 
 
 def run(
@@ -48,19 +56,31 @@ def run(
     return code, out, err
 
 
-def main() -> None:
-    env_content = """NEXT_PUBLIC_APP_NAME=IV Medicatie Verdeler
-NODE_ENV=production
-"""
+def ensure_env(ssh: paramiko.SSHClient) -> None:
+    run(
+        ssh,
+        f"cat > {REMOTE_DIR}/.env.local << 'ENVEOF'\n{ENV_CONTENT}ENVEOF",
+    )
+    run(ssh, f"cp {REMOTE_DIR}/.env.local {REMOTE_DIR}/.env")
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    print(f"Connecting to {USER}@{HOST}...")
-    ssh.connect(HOST, username=USER, password=PASSWORD, timeout=30)
 
-    run(ssh, "mkdir -p /var/www")
+def deploy_via_git(ssh: paramiko.SSHClient) -> None:
+    """Server bijwerken met git pull — geen lokale wijzigingen meer na tarball."""
     run(ssh, f"mkdir -p {REMOTE_DIR}")
+    code, _, _ = run(ssh, f"test -d {REMOTE_DIR}/.git", check=False)
+    if code != 0:
+        run(ssh, f"git clone --branch {BRANCH} {REPO} {REMOTE_DIR}")
+    run(ssh, f"cd {REMOTE_DIR} && git fetch origin {BRANCH}")
+    run(ssh, f"cd {REMOTE_DIR} && git checkout {BRANCH}")
+    run(ssh, f"cd {REMOTE_DIR} && git reset --hard origin/{BRANCH}")
+    run(ssh, f"cd {REMOTE_DIR} && git clean -fd")
+    _, out, _ = run(ssh, f"cd {REMOTE_DIR} && git log -1 --oneline")
+    print(f"Server commit: {out.strip()}")
 
+
+def deploy_via_tarball(ssh: paramiko.SSHClient) -> None:
+    """Eerste installatie zonder git-repo op de server."""
+    run(ssh, f"mkdir -p {REMOTE_DIR}")
     tar_path = tempfile.mktemp(suffix=".tar.gz")
     try:
         with tarfile.open(tar_path, "w:gz") as tar:
@@ -86,11 +106,30 @@ NODE_ENV=production
         if os.path.exists(tar_path):
             os.unlink(tar_path)
 
-    run(
-        ssh,
-        f"cat > {REMOTE_DIR}/.env.local << 'ENVEOF'\n{env_content}ENVEOF",
-    )
-    run(ssh, f"cp {REMOTE_DIR}/.env.local {REMOTE_DIR}/.env")
+    # Initialiseer git zodat volgende deploys via pull kunnen
+    run(ssh, f"cd {REMOTE_DIR} && git init -q", check=False)
+    run(ssh, f"cd {REMOTE_DIR} && git remote add origin {REPO}", check=False)
+    run(ssh, f"cd {REMOTE_DIR} && git fetch origin {BRANCH}", check=False)
+    run(ssh, f"cd {REMOTE_DIR} && git checkout -B {BRANCH} origin/{BRANCH}", check=False)
+
+
+def main() -> None:
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    print(f"Connecting to {USER}@{HOST}...")
+    ssh.connect(HOST, username=USER, password=PASSWORD, timeout=30)
+
+    run(ssh, "mkdir -p /var/www")
+    code, _, _ = run(ssh, f"test -d {REMOTE_DIR}/.git", check=False)
+    if code == 0:
+        print("==> Deploy via git (origin/main)")
+        deploy_via_git(ssh)
+    else:
+        print("==> Eerste deploy via tarball + git init")
+        deploy_via_tarball(ssh)
+        deploy_via_git(ssh)
+
+    ensure_env(ssh)
 
     code, _, _ = run(ssh, "node -v", check=False)
     if code != 0:
@@ -115,6 +154,7 @@ NODE_ENV=production
     print("\n=== Deploy klaar ===")
     print("App: http://192.168.1.32:3013")
     print("Cloudflare Tunnel: icu-med.clvs.nl -> http://127.0.0.1:3013")
+    print("\nOp de server: git pull werkt weer na deploy_via_git (reset --hard).")
     ssh.close()
 
 

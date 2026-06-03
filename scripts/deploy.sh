@@ -19,7 +19,9 @@ fi
 cd "$APP_DIR"
 git fetch origin
 git checkout "$BRANCH"
-git pull origin "$BRANCH"
+# Na tarball-deploy kunnen lokale wijzigingen pull blokkeren — reset naar origin.
+git reset --hard "origin/$BRANCH"
+git clean -fd
 
 if [[ ! -f "$APP_DIR/.env.local" ]]; then
   echo "==> Maak .env.local"
