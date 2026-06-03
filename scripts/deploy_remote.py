@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy IC Medicatie Verdeler naar Next-server (192.168.1.32) via SSH/SFTP."""
+"""Deploy IV Medicatie Verdeler naar Next-server (192.168.1.32) via SSH/SFTP."""
 import os
 import sys
 import tarfile
@@ -49,7 +49,7 @@ def run(
 
 
 def main() -> None:
-    env_content = """NEXT_PUBLIC_APP_NAME=IC Medicatie Verdeler
+    env_content = """NEXT_PUBLIC_APP_NAME=IV Medicatie Verdeler
 NODE_ENV=production
 """
 

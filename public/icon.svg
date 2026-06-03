@@ -1,8 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="80" fill="#1e40af"/>
-  <!-- Medical cross -->
-  <rect x="192" y="96" width="128" height="320" rx="20" fill="white"/>
-  <rect x="96" y="192" width="320" height="128" rx="20" fill="white"/>
-  <!-- Small dot to suggest IV -->
-  <circle cx="256" cy="256" r="24" fill="#1e40af"/>
+  <rect width="512" height="512" rx="88" fill="#1e40af"/>
+  <!-- hanger -->
+  <path d="M228 78h56" stroke="#fff" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 78v34" stroke="#fff" stroke-width="16" stroke-linecap="round"/>
+  <!-- IV bag -->
+  <rect x="164" y="112" width="184" height="136" rx="30" fill="#fff"/>
+  <rect x="190" y="138" width="132" height="76" rx="18" fill="#dbeafe"/>
+  <path d="M190 198h132v22H190z" fill="#3b82f6"/>
+  <!-- drip line + chamber -->
+  <rect x="238" y="248" width="36" height="64" rx="12" fill="#fff"/>
+  <circle cx="256" cy="332" r="30" fill="#fff"/>
+  <circle cx="256" cy="332" r="12" fill="#1e40af"/>
+  <!-- distribution hub → 3 lumens -->
+  <path d="M256 362v26" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+  <path d="M256 388L148 424" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <path d="M256 388v36" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <path d="M256 388L364 424" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="148" cy="436" r="26" fill="#fff"/>
+  <circle cx="256" cy="436" r="26" fill="#fff"/>
+  <circle cx="364" cy="436" r="26" fill="#fff"/>
+  <circle cx="148" cy="436" r="12" fill="#0d9488"/>
+  <circle cx="256" cy="436" r="12" fill="#7c3aed"/>
+  <circle cx="364" cy="436" r="12" fill="#ea580c"/>
 </svg>

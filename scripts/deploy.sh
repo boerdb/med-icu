@@ -24,7 +24,7 @@ git pull origin "$BRANCH"
 if [[ ! -f "$APP_DIR/.env.local" ]]; then
   echo "==> Maak .env.local"
   cat > "$APP_DIR/.env.local" << 'EOF'
-NEXT_PUBLIC_APP_NAME=IC Medicatie Verdeler
+NEXT_PUBLIC_APP_NAME=IV Medicatie Verdeler
 NODE_ENV=production
 EOF
 fi

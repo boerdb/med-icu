@@ -250,7 +250,7 @@ export function VerdelingsResultaat() {
   };
 
   const genereerOverdracht = (): string => {
-    const regels: string[] = ["IC Medicatie Verdeling", ""];
+    const regels: string[] = ["IV Medicatie Verdeling", ""];
     for (const lijnData of Object.values(perLijn)) {
       regels.push(`${lijnData.lijnNaam}:`);
       for (const lumenData of Object.values(lijnData.lumens)) {
@@ -282,7 +282,7 @@ export function VerdelingsResultaat() {
     const tekst = genereerOverdracht();
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title: "IC Medicatie Verdeling", text: tekst });
+        await navigator.share({ title: "IV Medicatie Verdeling", text: tekst });
       } catch {
         // gebruiker annuleerde het delen — geen melding nodig
       }

@@ -1,7 +1,7 @@
 {
-  "name": "IC Medicatie Verdeler",
-  "short_name": "IC Medicatie",
-  "description": "Verdeel IC-medicijnen veilig over infuuslumens op basis van Y-site compatibiliteit",
+  "name": "IV Medicatie Verdeler",
+  "short_name": "IV Medicatie",
+  "description": "Verdeel IV-medicijnen veilig over infuuslumens op basis van Y-site compatibiliteit",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

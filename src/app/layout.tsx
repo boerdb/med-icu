@@ -4,14 +4,14 @@ import { Toaster } from "@/components/Toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "IC Medicatie Verdeler",
+  title: "IV Medicatie Verdeler",
   description:
-    "Verdeel IC-medicijnen veilig over infuuslumens op basis van Y-site compatibiliteit",
+    "Verdeel IV-medicijnen veilig over infuuslumens op basis van Y-site compatibiliteit",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "IC Medicatie",
+    title: "IV Medicatie",
   },
   icons: {
     icon: [

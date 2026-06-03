@@ -143,7 +143,7 @@ export function PwaPrompts() {
             />
             <div className="min-w-0">
             <p className="pwa-kicker">iPhone / iPad</p>
-            <p className="pwa-title">Installeer IC Medicatie</p>
+            <p className="pwa-title">Installeer IV Medicatie</p>
             <ol className="pwa-steps">
               <li>
                 Tik op <strong>Deel</strong> (vierkant met pijl) in Safari
@@ -176,7 +176,7 @@ export function PwaPrompts() {
             />
             <div className="min-w-0">
             <p className="pwa-kicker">Android</p>
-            <p className="pwa-title">Installeer IC Medicatie</p>
+            <p className="pwa-title">Installeer IV Medicatie</p>
             <p className="pwa-text">
               Voeg de app toe aan je startscherm voor sneller openen en offline
               gebruik.
